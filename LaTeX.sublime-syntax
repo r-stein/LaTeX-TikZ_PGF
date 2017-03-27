@@ -9,6 +9,8 @@ file_extensions:
   # - tex
   # - ltx
 scope: text.tex.latex
+variables:
+  units: (?:sp|pt|bp|dd|mm|pc|cc|cm|in|ex|em)
 contexts:
   prototype:
     - include: comments
@@ -373,7 +375,7 @@ contexts:
       captures:
         1: support.function.begin.latex keyword.control.flow.begin.latex
         2: punctuation.definition.backslash.latex
-        3: punctuation.definition.group.brace.begin.latex
+        3: punctuation.definition.brace.bebgin.latex
         4: variable.parameter.function.latex
         5: punctuation.definition.group.brace.end.latex
       push:
@@ -548,7 +550,6 @@ contexts:
           align|alignat|aligned|alignedat|displaymath
           |eqnarray|equation|flalign|gather|gathered
           |math|multline|x?xalignat|split
-          |dmath|dseries|dgroup|darray|dsuspend
         )\*?)\s*(\})
       captures:
         1: support.function.begin.latex keyword.control.flow.begin.latex
@@ -776,7 +777,467 @@ contexts:
     - include: minted
     - include: pkgcomment
     - include: beamer
-    - include: pkgarray
+    - include: tikz
+
+  tikz:
+    - match: '(\\)usetikzlibrary\b'
+      captures:
+        0: keyword.control.preamble.latex
+        1: punctuation.definition.backslash.latex
+      push:
+        - meta_scope: meta.preamble.usetikzlibrary.latex
+        - include: general-optional-arguments
+        - match: '\{'
+          scope: punctuation.definition.group.brace.begin.latex
+          set:
+            - meta_scope: meta.preamble.usetikzlibrary.latex meta.group.brace.latex
+            - match: '\}'
+              scope: punctuation.definition.group.brace.end.latex
+              pop: true
+            - match: '[A-Za-z[:digit:]-]*'
+              scope: support.class.latex
+        - match: '(?=\S)'
+          pop: true
+
+    - match: '(\\)usepgfplotslibrary\b'
+      captures:
+        0: keyword.control.preamble.latex
+        1: punctuation.definition.backslash.latex
+      push:
+        - meta_scope: meta.preamble.usepgfplotslibrary.latex
+        - include: general-optional-arguments
+        - match: '\{'
+          scope: punctuation.definition.group.brace.begin.latex
+          set:
+            - meta_scope: meta.preamble.usepgfplotslibrary.latex meta.group.brace.latex
+            - match: '\}'
+              scope: punctuation.definition.group.brace.end.latex
+              pop: true
+            - match: '[A-Za-z[:digit:]-]*'
+              scope: support.class.latex
+        - match: '(?=\S)'
+          pop: true
+
+    - match: |-
+        (?x)
+        ((\\)begin)(\{)\s*((?:
+          tikzpicture
+        )\*?)\s*(\})
+      captures:
+        1: support.function.begin.latex keyword.control.flow.begin.latex
+        2: punctuation.definition.backslash.latex
+        3: punctuation.definition.group.brace.begin.latex
+        4: variable.parameter.function.latex
+        5: punctuation.definition.group.brace.end.latex
+      push:
+        - meta_content_scope: meta.environment.tikz.block.be.latex
+        - include: tikz-optional-arguments
+        - match: '((\\)end)(\{)\s*(\4)\s*(\})'
+          captures:
+            1: support.function.end.latex keyword.control.flow.begin.latex
+            2: punctuation.definition.backslash.latex
+            3: punctuation.definition.group.brace.begin.latex
+            4: variable.parameter.function.latex
+            5: punctuation.definition.group.brace.end.latex
+          pop: true
+        - include: tikz-content
+        - include: main
+
+    - match: '((\\)tikz)\b'
+      captures:
+        1: support.function.tikz.latex
+        2: punctuation.definition.backslash.latex
+      push:
+        - meta_scope: meta.function.tikz.latex
+        - include: tikz-optional-arguments
+        - match: '\{'
+          scope: punctuation.definition.group.brace.begin.latex
+          set:
+          - meta_scope: meta.function.tikz.latex
+          - meta_content_scope: meta.environment.tikz.inline.tikz.latex
+          - include: tikz-content
+          - match: '\}'
+            scope: punctuation.definition.group.brace.end.latex
+            pop: true
+        - match: '(?=\\)'
+          set:
+            - meta_scope: meta.function.tikz.latex
+            - meta_content_scope: meta.environment.tikz.inline.tikz.latex
+            - include: tikz-content
+            - match: ''
+              pop: true
+
+  tikz-paren:
+    - match: '\('
+      scope: punctuation.definition.group.paren.begin.latex
+      push:
+        - meta_scope: meta.group.paren.latex
+        - match: '\)'
+          scope: punctuation.definition.group.paren.end.latex
+          pop: true
+        - match: '-?\d+(?:\.\d*)?'
+          scope: constant.numeric.tikz.latex
+        - include: tikz-paren
+        - include: units
+        - include: general-commands
+
+  tikz-number:
+        - match: '(-?(?:\d+(?:\.\d*)?|\.\d+))\s*({{units}}\b)?'
+          captures:
+            1: constant.numeric.tikz.latex
+            2: keyword.other.unit.latex
+
+  tikz-point:
+    - match: '(\+{0,2})\s*(\()'
+      captures:
+        1: keyword.operator.relative.tikz.latex
+        2: punctuation.definition.group.paren.begin.latex
+      push:
+        # TODO anchors? like (first node.south)
+        - meta_scope: meta.group.paren.latex
+        - match: '\)'
+          scope: punctuation.definition.group.paren.end.latex
+          pop: true
+        - match: '(?:,|:)'
+          scope: keyword.operator.separator.tikz.latex
+        - include: tikz-paren
+        - match: '(\.)(north(?:\s+(?:west|east))?|east|south(?:\s+(?:west|east))?|west)'
+          captures:
+            2: support.function.modifier.tikz.latex
+        - include: tikz-number
+        - match: \b{{units}}\b
+          scope: keyword.other.unit.latex
+        - include: general-commands
+
+  tikz-node-args:
+    - match: '\}'
+      scope: punctuation.definition.group.brace.end.latex
+      pop: true
+    - match: '\{'
+      scope: punctuation.definition.group.brace.begin.latex
+      push:
+        - meta_scope: meta.group.brace.latex node.arges
+        - match: '(?=\})'
+          pop: true
+        - include: main
+
+  tikz-node-remain-3:
+    - match: '(?=\{)'
+      set: tikz-node-args
+    - match: '\['
+      set:
+        - match: '\]'
+          set: tikz-node-args
+
+  tikz-node-remain-2:
+    - match: '(?=\{)'
+      set: tikz-node-args
+    - match: 'at'
+      scope: keyword.other.at.tikz.latex
+      set:
+        - include: tikz-point
+        - match: '(?=\S)'
+          set: tikz-node-remain-3
+
+  tikz-node-remain-1:
+    - include: tikz-optional-arguments
+    - match: '\('
+      set:
+        - meta_scope: 'name'
+        - match: '[A-Za-z]'
+          scope: 'variable.parameter.definition.tikz.latex'
+        - match: '\)'
+          set: tikz-node-remain-2
+    # - match: '(?=\[)'
+    #   set: tikz-node-args
+    - match: '(?=at)'
+      set: tikz-node-remain-2
+    - match: '(?=\{)'
+      set: tikz-node-args
+
+
+  tikz-node:
+    # e.g.  \draw (1,1) node[circle,draw] {text};
+    - match: '\bnode\b'
+      scope: keyword.other.node.tikz.latex
+      push:
+        # TODO test
+        - include: tikz-node-remain-1
+        # - include: tikz-optional-arguments
+        # - include: tikz-paren
+        # - include: tikz-node-args
+
+  tikz-tree-child:
+    # e.g.  \draw (1,1) node[circle,draw] {text};
+    - match: 'child'
+      scope: keyword.other.node.child.tikz.latex
+      push:
+        - include: tikz-optional-arguments
+        - include: tikz-paren
+        - match: '\{'
+          set:
+            - match: '\}'
+              pop: true
+            - include: tikz-tree-child
+    - include: tikz-node
+
+  tikz-graph:
+    - match: '\{'
+      push:
+        - match: '\}'
+          pop: true
+        - include: tikz-graph
+    - match: '->'
+      scope: keyword.operator.arrow.tikz.latex
+    - match: ','
+      scope: keyword.operator.separator.tikz.latex
+    - match: '[A-Za-z]+'
+      scope: variable.parameter.definition.tikz.latex
+
+  tikz-optional-arguments:
+    - match: '\['
+      scope: punctuation.definition.group.bracket.begin.latex
+      push:
+        - meta_scope: meta.group.bracket.latex
+        - match: '\]'
+          scope: punctuation.definition.group.bracket.end.latex
+          pop: true
+        - include: general-constants
+        - include: general-commands
+        - match: '[A-Za-z[:digit:]-][A-Za-z[:digit:]-\s]*(?=\s*\=)'
+          scope: variable.parameter.bracket.latex
+
+  tikz-edge:
+    - match: '([A-Za-z]+)\s+(\[)'
+      captures:
+        1: support.function.operator.edge.tikz.latex
+      push:
+        - include: tikz-number
+        - match: '\]'
+          pop: true
+    - match: '([A-Za-z]+)'
+      scope: support.function.operator.edge.tikz.latex
+
+  tikz-path:
+    - include: tikz-point
+    - include: tikz-node
+    - include: tikz-edge
+    - match: '[-|><]{2}'
+      scope: keyword.operator.edge.tikz.latex
+    - match: 'cycle'
+      scope: keyword.other.cycle.tikz.latex
+
+  pgf:
+    - include: pgf-foreach
+    - include: pgf-addplot
+    - match: |-
+        (?x)
+        ((\\)begin)(\{)\s*((?:
+          axis
+        )\*?)\s*(\})
+      captures:
+        1: support.function.begin.latex keyword.control.flow.begin.latex
+        2: punctuation.definition.backslash.latex
+        3: punctuation.definition.group.brace.begin.latex
+        4: variable.parameter.function.latex
+        5: punctuation.definition.group.brace.end.latex
+      push:
+        - meta_content_scope: meta.environment.tikz.pgf.axis.block.be.latex
+        - include: tikz-optional-arguments
+        - match: '((\\)end)(\{)\s*(\4)\s*(\})'
+          captures:
+            1: support.function.end.latex keyword.control.flow.begin.latex
+            2: punctuation.definition.backslash.latex
+            3: punctuation.definition.group.brace.begin.latex
+            4: variable.parameter.function.latex
+            5: punctuation.definition.group.brace.end.latex
+          pop: true
+        - include: tikz-content
+        - include: main
+
+  # \foreach <variables> [<options>] in <list> <commands>
+  pgf-foreach:
+    - match: '((\\)(foreach))\b'
+      captures:
+        1: support.function.foreach.latex keyword.other.foreach.latex
+        2: punctuation.definition.backslash.latex
+      push:
+        - include: pgf-foreach-1-variables
+
+  pgf-foreach-1-variables:
+    - match: (?=\[)
+      set: pgf-foreach-1a-options
+    - match: 'in'
+      scope: keyword.other.in.foreach.tikz.latex
+      set: pgf-foreach-2-list
+    - match: '((\\)([a-zA-Z0-9]+))\b'
+      captures:
+        1: variable.parameter.definition.foreach.latex
+        2: punctuation.definition.backslash.latex
+    - match: '/'
+      scope: keyword.operator.separator.tikz.latex
+
+  pgf-foreach-1a-options:
+    - match: (\[)
+      scope: punctuation.definition.group.bracket.begin.latex
+      set:
+        - match: (\])
+          scope: punctuation.definition.group.bracket.begin.latex
+          set:
+            - match: 'in'
+              scope: keyword.other.in.foreach.tikz.latex
+              set: pgf-foreach-2-list
+        - match: '(var|evaluate|remember|count)\s*=((\\)([a-zA-Z0-9]+))?'
+          captures:
+            1: variable.parameter.bracket.latex
+            2: variable.parameter.definition.foreach.latex
+            3: punctuation.definition.backslash.latex
+        - match: '\b(as)\s*((\\)([a-zA-Z0-9]+))?'
+          captures:
+            1: keyword.other.optional.foreach.latex
+            2: variable.parameter.definition.foreach.latex
+            3: punctuation.definition.backslash.latex
+        - match: '\b(?:as|using|initially|from)\b'
+          scope: keyword.other.optional.foreach.latex
+
+  pgf-foreach-2-list:
+    - match: (\{)
+      scope: punctuation.definition.group.brace.begin.latex
+      set:
+        - meta_scope: meta.function.foreach.list.latex
+        - match: (\})
+          scope: punctuation.definition.group.brace.end.latex
+          set: pgf-foreach-3-commands
+        - match: '/'
+          scope: keyword.operator.separator.tikz.latex
+        - match: '\.\.\.'
+          scope: keyword.other.dots.tikz.latex
+    - match: '((\\)[A-Za-z@]+)'
+      captures:
+        1: support.function.general.latex
+        2: punctuation.definition.backslash.latex
+      set: pgf-foreach-3-commands
+
+  pgf-foreach-3-commands:
+    - match: ''
+      pop: true
+    - match: (\{)
+      scope: punctuation.definition.group.brace.begin.latex
+      set:
+        - meta_scope: meta.function.foreach.list.latex
+        - match: (\})
+          scope: punctuation.definition.group.brace.end.latex
+          pop: true
+        - match: ((\\)breakforeach)\b
+          captures:
+            1: keyword.control.breakforeach.latex
+            2: punctuation.definition.backslash.latex
+        - include: main
+        - include: tikz-content
+    - match: (?=\S)
+      pop: true
+      # set: pgf-foreach-3-commands
+
+  pgf-addplot:
+    - match: ((\\)addplot)\b
+      captures:
+        1: entity.name.function.tikz.pgf.addplot.latex
+        # 1: support.function.tikz.coordinate.latex
+        2: punctuation.definition.backslash.latex
+      push:
+        - meta_scope: meta.function.tikz.coordinate.latex
+        - include: tikz-optional-arguments
+        - include: tikz-paren
+        - match: \b(?:coordinates|table|file)\b
+          scope: keyword.other.pfg.tikz.latex
+        - match: \{
+          push:
+            - match: \}
+              pop: true
+        - match: ';'
+          scope: punctuation.terminator.tikz.latex
+          pop: true
+
+  tikz-content:
+    - include: tikz-optional-arguments
+    - include: pgf
+    - match: '\{'
+      push:
+        - match: '\}'
+          pop: true
+        - include: tikz-content
+        - include: main
+    - match: |-
+        (?x)
+        (
+          (\\)
+          (?:
+            clip|draw|fill(?:draw)?|path|pattern|shade(?:draw)?
+          )
+        )\b
+      captures:
+        1: entity.name.function.tikz.path.latex
+        # 1: support.function.tikz.path.latex
+        2: punctuation.definition.backslash.latex
+      push:
+        - meta_scope: meta.function.tikz.path.latex
+        - include: tikz-optional-arguments
+        # - include: tikz-point
+        - include: tikz-path
+        - match: ';'
+          scope: punctuation.terminator.tikz.latex
+          pop: true
+
+    - match: ((\\)node)\b
+      captures:
+        1: entity.name.function.tikz.node.latex
+        2: punctuation.definition.backslash.latex
+      push:
+        - meta_scope: meta.function.tikz.node.latex
+        # - match: ''
+        #   push:
+        # TODO this pops the whole context
+        - include: tikz-node-remain-1
+        - match: ';'
+          scope: punctuation.terminator.tikz.latex
+
+    - match: ((\\)graph)\b
+      captures:
+        1: entity.name.function.tikz.graph.latex
+        2: punctuation.definition.backslash.latex
+      push:
+        - meta_scope: meta.function.tikz.graph.latex
+        - include: tikz-optional-arguments
+        - match: '\{'
+          set:
+            - meta_scope: meta.function.tikz.graph.latex
+            - include: tikz-graph
+            - match: '\}'
+              set:
+                - match: ';'
+                  scope: punctuation.terminator.tikz.latex
+                  pop: true
+
+    - match: ((\\)coordinate)\b
+      captures:
+        1: entity.name.function.tikz.coordinate.latex
+        # 1: support.function.tikz.coordinate.latex
+        2: punctuation.definition.backslash.latex
+      push:
+        - meta_scope: meta.function.tikz.coordinate.latex
+        - include: tikz-optional-arguments
+        - include: tikz-paren
+        - match: ';'
+          scope: punctuation.terminator.tikz.latex
+          pop: true
+        - match: 'at'
+          scope: keyword.other.tikz.latex
+          set:
+            - include: tikz-point
+            - match: ';'
+              scope: punctuation.terminator.tikz.latex
+              pop: true
+
 
   # listings package
   pkglistings:
@@ -1660,139 +2121,3 @@ contexts:
        3: punctuation.definition.group.brace.begin.latex
        4: entity.name.function.frame.latex
        5: punctuation.definition.group.brace.end.latex
-
-  # support for array package
-  pkgarray:
-    - match: |-
-        (?x)
-        (
-          (\\)newcolumntype
-        )
-        (?:
-          (\{)
-          (
-            (?:\\[A-Za-z@]+)
-            | (?:[A-Za-z@])
-          )
-          (\})
-        )
-        (?:(\[)(?:[^\]]*)(\]))*
-        (\{)
-      captures:
-        1: support.function.newcolumntype.latex
-        2: punctuation.definition.backslash.latex
-        3: punctuation.definition.group.brace.begin.latex
-        4: support.function.latex entity.name.newcolumntype.latex
-        5: punctuation.definition.group.brace.end.latex
-        6: punctuation.definition.group.bracket.begin.latex
-        7: punctuation.definition.group.bracket.end.latex
-        8: punctuation.definition.group.brace.begin.latex
-      push:
-        - meta_include_prototype: false
-        - meta_scope: meta.function.newcolumntype.latex
-        - match: '\}'
-          scope: punctuation.definition.group.brace.end.latex
-          pop: true
-        - include: array-preamble
-
-
-    - match: |-
-        (?x)
-        ((\\)begin)(\{)(tabular)(\})
-        (?:(\[)(?:b|c|t)(\]))?
-        (?=\s*\{)
-      captures:
-        1: support.function.begin.latex keyword.control.flow.begin.latex
-        2: punctuation.definition.backslash.latex
-        3: punctuation.definition.group.brace.begin.latex
-        4: variable.parameter.function.latex
-        5: punctuation.definition.group.brace.end.latex
-        6: punctuation.definition.group.bracket.begin.latex
-        7: punctuation.definition.group.bracket.end.latex
-      push:
-        - meta_scope: meta.environment.tabular.latex
-        - match: '\{'
-          scope: meta.function.column-spec.latex punctuation.definition.group.brace.begin.latex
-          set:
-            - meta_content_scope: meta.environment.tabular.latex meta.function.column-spec.latex
-            - include: array-preamble
-            - match: '\}'
-              scope: punctuation.definition.group.brace.end.latex
-              set:
-                - meta_content_scope: meta.environment.tabular.latex
-                - match: '((\\)end)(\{)(tabular)(\})'
-                  scope: meta.environment.tabular.latex
-                  captures:
-                    1: support.function.end.latex keyword.control.flow.end.latex
-                    2: punctuation.definition.backslash.latex
-                    3: punctuation.definition.group.brace.begin.latex
-                    4: variable.parameter.function.latex
-                    5: punctuation.definition.group.brace.end.latex
-                  pop: true
-                - include: main
-
-
-  array-preamble:
-    - match: 'l|r|c'
-      scope: keyword.other.column-type.latex
-
-    - match: '(?:p|m|b)(?=\s*\{)'
-      scope: support.function.parbox-column.latex
-      push:
-        - meta_scope: meta.function.parbox-column.latex
-        - include: general-1-argument
-
-    - match: '(>)\s*(\{)'
-      captures:
-        1: support.function.insert-before-column.latex
-        2: punctuation.definition.group.brace.begin.latex
-      push:
-        - meta_scope: meta.function.before-column-decl.latex
-        - match: '\}'
-          scope: punctuation.definition.group.brace.end.latex
-          pop: true
-        - include: general-constants
-        - include: general-commands
-        - include: macro-braces
-
-    - match: '(<)\s*(\{)'
-      captures:
-        1: support.function.insert-after-column.latex
-        2: punctuation.definition.group.brace.begin.latex
-      push:
-        - meta_scope: meta.function.after-column-decl.latex
-        - match: '\}'
-          scope: punctuation.definition.group.brace.end.latex
-          pop: true
-        - include: general-constants
-        - include: general-commands
-        - include: macro-braces
-
-    - match: '\|'
-      scope: keyword.operator.inter-column-line.latex
-
-    - match: '(@)\s*(\{)'
-      captures:
-        1: support.function.inter-column-nospace.latex
-        2: punctuation.definition.group.brace.begin.latex
-      push:
-        - meta_scope: meta.function.inter-column-decl.latex
-        - match: '\}'
-          scope: punctuation.definition.group.brace.end.latex
-          pop: true
-        - include: general-constants
-        - include: general-commands
-        - include: macro-braces
-
-    - match: '(!)\s*(\{)'
-      captures:
-        1: support.function.inter-column.latex
-        2: punctuation.definition.group.brace.begin.latex
-      push:
-        - meta_scope: meta.function.inter-column-decl.latex
-        - match: '\}'
-          scope: punctuation.definition.group.brace.end.latex
-          pop: true
-        - include: general-constants
-        - include: general-commands
-        - include: macro-braces
