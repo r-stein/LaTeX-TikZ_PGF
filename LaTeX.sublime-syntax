@@ -1,10 +1,13 @@
 %YAML 1.2
 ---
 # http://www.sublimetext.com/docs/3/syntax.html
-name: LaTeX
+name: LaTeX (TikZ/PGF)
+# name: LaTeX
 file_extensions:
-  - tex
-  - ltx
+  - tikz
+  - fig
+  # - tex
+  # - ltx
 scope: text.tex.latex
 contexts:
   prototype:
