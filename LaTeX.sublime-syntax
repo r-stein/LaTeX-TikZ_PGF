@@ -6,8 +6,8 @@ name: LaTeX (TikZ/PGF)
 file_extensions:
   - tikz
   - fig
-  # - tex
-  # - ltx
+  - tex
+  - ltx
 scope: text.tex.latex
 variables:
   units: (?:sp|pt|bp|dd|mm|pc|cc|cm|in|ex|em)
