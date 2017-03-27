@@ -995,8 +995,12 @@ contexts:
       scope: variable.parameter.definition.tikz.latex
 
   pgf-set-key:
-    - match: '(?:([A-Za-z[:digit:]-]+)(\/\.))?[A-Za-z[:digit:]-][A-Za-z[:digit:]-\s]*(?=\s*\=)'
+    - match: '(?:([A-Za-z[:digit:]-][A-Za-z[:digit:]-\s]*)(\/)\.)?[A-Za-z[:digit:]-][A-Za-z[:digit:]-\s]*\s*(\=)'
       scope: variable.parameter.set-key.pgf.tikz.latex
+      captures:
+        1: support.function.key.set-key.pgf.tikz.latex
+        2: keyword.other.separator.set-key.pgf.tikz.latex
+        3: keyword.other.assign.set-key.pgf.tikz.latex
       push:
         - match: \{
           scope: punctuation.definition.group.brace.begin.latex
@@ -1006,12 +1010,24 @@ contexts:
               scope: punctuation.definition.group.brace.end.latex
               pop: true
             - include: pgf-set-key
+        # number
+        # - match: '\s*(-?(?:\d+(?:\.\d*)?|\.\d+))\s*({{units}}\b)?'
+        #   captures:
+        #     1: constant.numeric.tikz.latex
+        #     2: keyword.other.unit.latex
+        # - include: tikz-number
+        # - match: -?(?:\d*\.?\d+|\d+\.?\d*)
         # pop the scope when the argument ends
         - match: (?=,)
           pop: true
         - match: (?=\]|\})
           pop: true
-
+    - match: '(?:([A-Za-z[:digit:]-][A-Za-z[:digit:]-\s]*)(\/)\.)?[A-Za-z[:digit:]-][A-Za-z[:digit:]-\s]*(?=,|\]|\})'
+      scope: variable.parameter.set-key.pgf.tikz.latex
+      captures:
+        1: support.function.key.set-key.pgf.tikz.latex
+        2: keyword.other.separator.set-key.pgf.tikz.latex
+        3: keyword.other.assign.set-key.pgf.tikz.latex
 
   tikz-optional-arguments:
     - match: '\['
@@ -1053,7 +1069,7 @@ contexts:
     - match: |-
         (?x)
         ((\\)begin)(\{)\s*((?:
-          axis
+          (?:log){0:2}axis
         )\*?)\s*(\})
       captures:
         1: support.function.begin.latex keyword.control.flow.begin.latex
@@ -1257,6 +1273,31 @@ contexts:
             - match: ';'
               scope: punctuation.terminator.tikz.latex
               pop: true
+
+    - match: |-
+        (?x)
+        ((\\)begin)(\{)\s*((?:
+          scope
+        )\*?)\s*(\})
+      captures:
+        1: support.function.begin.latex keyword.control.flow.begin.latex
+        2: punctuation.definition.backslash.latex
+        3: punctuation.definition.group.brace.begin.latex
+        4: variable.parameter.function.latex
+        5: punctuation.definition.group.brace.end.latex
+      push:
+        - meta_content_scope: meta.environment.tikz.pgf.scope.block.be.latex
+        - include: tikz-optional-arguments
+        - match: '((\\)end)(\{)\s*(\4)\s*(\})'
+          captures:
+            1: support.function.end.latex keyword.control.flow.begin.latex
+            2: punctuation.definition.backslash.latex
+            3: punctuation.definition.group.brace.begin.latex
+            4: variable.parameter.function.latex
+            5: punctuation.definition.group.brace.end.latex
+          pop: true
+        - include: tikz-content
+        - include: main
 
 
   # listings package
